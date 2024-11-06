@@ -1,5 +1,12 @@
-from mitmproxy import http, ctx
+from mitmproxy import http, ctx,websocket
 from urllib.parse import urlparse
+import asyncio
+import websockets
+
+from rich import print
+from rich.console import Console
+
+console = Console()
 
 class CORSchecker:
     def replay_with_different_origins(self, original_flow, origins):
@@ -76,4 +83,38 @@ class CORSchecker:
         except Exception as e:
             pass
 
-addons = [CORSchecker()]
+
+class WebSocketChecker:
+    def websocket_start(self, flow) -> None:
+        if flow.websocket:
+            # Determine the WebSocket scheme
+            scheme = "wss" if flow.client_conn.tls_established else "ws"
+            websocket_url = f"{scheme}://{flow.request.host}{flow.request.path}"
+            console.print(f"[+] WebSocket connection detected: {websocket_url}",style="bold green")
+
+            
+            # Schedule the connection test as a background task
+            asyncio.create_task(self.test_websocket_connection(websocket_url))
+
+    async def test_websocket_connection(self, websocket_url: str):
+        try:
+            async with websockets.connect(websocket_url) as ws:
+                print(f"[+] Successfully connected to WebSocket: {websocket_url}")
+                message = await ws.recv()
+                print(f"[+] Received message from WebSocket: {message}")
+        except Exception as e:
+            print(f"[-] Failed to connect to WebSocket: {websocket_url}. Error: {e}")
+
+    def send_to_websocket(self, message: str):
+        # Send the message to all active WebSocket connections
+        for ws in self.websocket_connections.values():
+            try:
+                asyncio.create_task(ws.send(message))
+            except Exception as e:
+                print(f"[-] Failed to send message over WebSocket: {e}")
+
+
+ 
+
+
+addons = [CORSchecker(),WebSocketChecker()]
