@@ -53,31 +53,35 @@ class CORSchecker:
             hostname_vaue = parsed_url.hostname
             # Check CORS-related issues in the response
             if "evil.com" in flow.response.headers["access-control-allow-origin"]:
-                print("--------[+] CORS issue: Accept any domain--------")
-                print("[+] Reflected Origin: " + flow.request.url)
+                console.log("--------[+] CORS issue: Accept any domain--------",style="bold green")
+                console.log("[+] Reflected Origin: " + flow.request.url,style="green")
                 if "true" in flow.response.headers["access-control-allow-credentials"]:
-                    print("[+] Credentials Enabled")
-                    print(flow.request.url)
+                    console.log("[+] Credentials Enabled",style="red")
+                    print("\n")
             if "https://"+hostname_vaue+".evil.com" in flow.response.headers["access-control-allow-origin"]:
-                print("--------[+] CORS issue: CORS domain Bypass--------")
-                print("[+] Reflected Origin: " + flow.request.url)
+                console.log("--------[+] CORS issue: CORS domain Bypass--------",style="bold green")
+                console.log("[+] Reflected Origin: " + flow.request.url,style="green")
                 if "true" in flow.response.headers["access-control-allow-credentials"]:
-                    print("[+] Credentials Enabled")
+                    console.log("[+] Credentials Enabled",style="red")
+                    print("\n")
             if "https://"+hostname_vaue+"evil.com" in flow.response.headers["access-control-allow-origin"]:
-                print("--------[+] CORS issue: CORS Suffix Bypass--------")
-                print("[+] Reflected Origin: " + flow.request.url)
+                console.log("--------[+] CORS issue: CORS Suffix Bypass--------",style="bold green")
+                console.log("[+] Reflected Origin: " + flow.request.url,style="green")
                 if "true" in flow.response.headers["access-control-allow-credentials"]:
-                    print("[+] Credentials Enabled")
+                    console.log("[+] Credentials Enabled",style="red")
+                    print("\n")
             if "https://"+"evil"+hostname_vaue in flow.response.headers["access-control-allow-origin"]:
-                print("--------[+] CORS issue: CORS prefix Bypass--------")
-                print("[+] Reflected Origin: " + flow.request.url)
+                console.log("--------[+] CORS issue: CORS prefix Bypass--------",style="bold green")
+                console.log("[+] Reflected Origin: " + flow.request.url,style="green")
                 if "true" in flow.response.headers["access-control-allow-credentials"]:
-                    print("[+] Credentials Enabled")
+                    console.log("[+] Credentials Enabled",style="red")
+                    print("\n")
             if "null" in flow.response.headers["access-control-allow-origin"]:
-                print("--------[+] CORS issue: CORS null Bypass--------")
-                print("[+] Reflected Origin: " + flow.request.url)
+                console.log("--------[+] CORS issue: CORS null Bypass--------",style="bold green")
+                console.log("[+] Reflected Origin: " + flow.request.url,style="green")
                 if "true" in flow.response.headers["access-control-allow-credentials"]:
-                    print("[+] Credentials Enabled")                       
+                    console.log("[+] Credentials Enabled",style="red")
+                    print("\n")                       
             else:
                 pass
         except Exception as e:
@@ -90,7 +94,7 @@ class WebSocketChecker:
             # Determine the WebSocket scheme
             scheme = "wss" if flow.client_conn.tls_established else "ws"
             websocket_url = f"{scheme}://{flow.request.host}{flow.request.path}"
-            console.print(f"[+] WebSocket connection detected: {websocket_url}",style="bold green")
+            console.log(f"[+] WebSocket connection detected: {websocket_url}",style="bold green")
 
             
             # Schedule the connection test as a background task
@@ -99,19 +103,13 @@ class WebSocketChecker:
     async def test_websocket_connection(self, websocket_url: str):
         try:
             async with websockets.connect(websocket_url) as ws:
-                print(f"[+] Successfully connected to WebSocket: {websocket_url}")
+                console.log(f"[+] Successfully connected to WebSocket: {websocket_url}",style="green")
                 message = await ws.recv()
-                print(f"[+] Received message from WebSocket: {message}")
+                console.log(f"[+] Received message from WebSocket: {message}",style="green")
+                print("\n")
         except Exception as e:
-            print(f"[-] Failed to connect to WebSocket: {websocket_url}. Error: {e}")
-
-    def send_to_websocket(self, message: str):
-        # Send the message to all active WebSocket connections
-        for ws in self.websocket_connections.values():
-            try:
-                asyncio.create_task(ws.send(message))
-            except Exception as e:
-                print(f"[-] Failed to send message over WebSocket: {e}")
+            console.log(f"[-] Failed to connect to WebSocket: {websocket_url}. Error: {e}",style="red")
+            print("\n")
 
 
  
