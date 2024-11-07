@@ -2,6 +2,8 @@ from mitmproxy import http, ctx,websocket
 from urllib.parse import urlparse
 import asyncio
 import websockets
+import re
+from rich.syntax import Syntax
 
 from rich import print
 from rich.console import Console
@@ -35,13 +37,15 @@ class CORSchecker:
             return
         parsed_url = urlparse(flow.request.url)
         hostname_vaue = parsed_url.hostname
+        #domain = parsed_url.hostname.split('.')[1] + '.' + parsed_url.hostname.split('.')[2]
         cors1 = "https://evil.com"
         cors2 = "https://"+hostname_vaue+".evil.com"
         cors3 = "https://"+hostname_vaue+"evil.com"
-        cors4 = "https://"+"evil"+hostname_vaue
+        #cors4 = "https://"+"evil"+domain
+        # enable cors4 somehow its throwing error
         cors5 = "null"
         # Define the list of different origins
-        origins = [cors1, cors2, cors3, cors4, cors5]
+        origins = [cors1, cors2, cors3, cors5] # i removed cors4 here
 
         # Replay the flow with different origins
         self.replay_with_different_origins(flow, origins)
@@ -112,7 +116,46 @@ class WebSocketChecker:
             print("\n")
 
 
- 
+class PostMessageChecker:
+    def response(self, flow: http.HTTPFlow) -> None:
+        if flow.is_replay:
+            return
+        try:
+            # Define the regular expression patterns
+            postmessage_pattern = r'postMessage\([a-zA-Z]+,["\'].*?["\']\)'
+            listener_pattern = r'window\.addEventListener\(["\']message["\'],\s*function\(e\)'
 
+            # Search for postMessage() pattern in the response text
+            postmessage_matches = re.finditer(postmessage_pattern, flow.response.text)
+            for match in postmessage_matches:
+                # Extract surrounding text (5 lines before and 15 lines after)
+                start_pos = max(0, match.start() - 200)
+                end_pos = min(len(flow.response.text), match.end() + 600)
+                context = flow.response.text[start_pos:end_pos]
 
-addons = [CORSchecker(),WebSocketChecker()]
+                # Log the postMessage match context
+                console.log("[+] postMessage call detected:", style="bold green")
+                syntax = Syntax(context, "python", theme="monokai", line_numbers=True)
+                console.print(flow.request.url)
+                console.print(syntax)
+                console.log("\n")
+
+            # Search for window.addEventListener('message', function(e)) pattern in the response text
+            listener_matches = re.finditer(listener_pattern, flow.response.text)
+            for match in listener_matches:
+                # Extract surrounding text (5 lines before and 15 lines after)
+                start_pos = max(0, match.start() - 200)
+                end_pos = min(len(flow.response.text), match.end() + 600)
+                context = flow.response.text[start_pos:end_pos]
+
+                # Log the addEventListener match context
+                console.log("[+] window.addEventListener('message', function(e) detected:", style="bold green")
+                syntax = Syntax(context, "python", theme="monokai", line_numbers=True)
+                console.print(flow.request.url)
+                console.print(syntax)
+                console.log("\n")
+
+        except Exception as e:
+            pass
+
+addons = [CORSchecker(),WebSocketChecker(),PostMessageChecker()]
