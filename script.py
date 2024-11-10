@@ -124,6 +124,8 @@ class PostMessageChecker:
             # Define the regular expression patterns
             postmessage_pattern = r'postMessage\([a-zA-Z]+,["\'].*?["\']\)'
             listener_pattern = r'window\.addEventListener\(["\']message["\'],\s*function\(e\)'
+            location_search_pattern = r'.*\.location\.search|location\.search'
+            hash_search_pattern = r'.*\.location\.hash|location\.hash'
 
             # Search for postMessage() pattern in the response text
             postmessage_matches = re.finditer(postmessage_pattern, flow.response.text)
@@ -155,7 +157,90 @@ class PostMessageChecker:
                 console.print(syntax)
                 console.log("\n")
 
+            # Search for location.search pattern in the response text
+            location_search_matches = re.finditer(location_search_pattern, flow.response.text)
+            for match in location_search_matches:
+                # Extract surrounding text (5 lines before and 15 lines after)
+                start_pos = max(0, match.start() - 200)
+                end_pos = min(len(flow.response.text), match.end() + 600)
+                context = flow.response.text[start_pos:end_pos]
+
+                # Log the location.search match context
+                console.log("[+] location.search source detected:", style="bold green")
+                syntax = Syntax(context, "javascript", theme="monokai", line_numbers=True)
+                console.print(flow.request.url)
+                console.print(syntax)
+                console.log("\n")
+
+            hash_search_matches = re.finditer(hash_search_pattern, flow.response.text)
+            for match in hash_search_matches:
+                # Extract surrounding text (5 lines before and 15 lines after)
+                start_pos = max(0, match.start() - 200)
+                end_pos = min(len(flow.response.text), match.end() + 600)
+                context = flow.response.text[start_pos:end_pos]
+
+                # Log the location.search match context
+                console.log("[+] location.hash source detected:", style="bold green")
+                syntax = Syntax(context, "javascript", theme="monokai", line_numbers=True)
+                console.print(flow.request.url)
+                console.print(syntax)
+                console.log("\n")
+
         except Exception as e:
             pass
 
-addons = [CORSchecker(),WebSocketChecker(),PostMessageChecker()]
+import re
+
+class PostMessageChecker2:
+    # Optimized combined regex pattern for all checks
+    combined_pattern = re.compile(
+        r'(?:postMessage\(\s*[a-zA-Z0-9_]+\s*,\s*["\']([^"\']+)["\']\s*\))|'  # postMessage pattern
+        r'(?:window\.addEventListener\(\s*["\']message["\']\s*,)|'  # addEventListener pattern (simplified)
+        r'(?:\blocation\.search\b)|'  # location.search pattern
+        r'(?:\blocation\.hash\b)'  # location.hash pattern
+    )
+
+    def response(self, flow: http.HTTPFlow) -> None:
+        if flow.is_replay:
+            return
+
+        try:
+            # Check and log any match from the combined pattern
+            self.check_and_log(flow, self.combined_pattern)
+
+        except Exception as e:
+            pass
+
+    def check_and_log(self, flow, pattern):
+        """
+        Helper function to search for a pattern and log the context if found.
+        """
+        for match in pattern.finditer(flow.response.text):
+            # Determine which pattern matched and log accordingly
+            if match.group(0).startswith("postMessage"):
+                log_message = "[+] postMessage detected:"
+            elif match.group(0).startswith("window.addEventListener"):
+                log_message = "[+] window.addEventListener('message', ...) detected:"
+            elif match.group(0).startswith("location.search"):
+                log_message = "[+] location.search detected:"
+            elif match.group(0).startswith("location.hash"):
+                log_message = "[+] location.hash detected:"
+
+            # Extract surrounding text (5 lines before and 15 lines after)
+            start_pos = max(0, match.start() - 200)
+            end_pos = min(len(flow.response.text), match.end() + 600)
+            context = flow.response.text[start_pos:end_pos]
+
+            # Limit the context length to avoid overloading the log
+            context = context[:1000]  # Log the first 1000 characters of context
+
+            # Log the match context with the corresponding pattern
+            console.log(log_message, style="bold green")
+            syntax = Syntax(context, "python", theme="monokai", line_numbers=True)
+            console.print(flow.request.url)
+            console.print(syntax)
+            console.log("\n")
+
+
+addons =[PostMessageChecker2()]
+#addons = [CORSchecker(),WebSocketChecker(),PostMessageChecker()]
